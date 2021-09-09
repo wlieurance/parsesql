@@ -6,7 +6,6 @@
 #'   specific state, as being part of a comment, or as being quoted. The class
 #'   also parses out key words from the statement for use in display or
 #'   printing.
-#' @importFrom dplyr "%>%"
 #' @export
 sql_parser <- R6::R6Class("sql_parser",
   public = list(
@@ -298,8 +297,9 @@ sql_parser <- R6::R6Class("sql_parser",
       combined <- stripped %>%
         dplyr::inner_join(groups, by = c("state"="state")) %>%
         # next line is where the magic happens to detect changes in states
-        dplyr::mutate(state_no = cumsum(gn != lag(gn, 1,
-                                                  default = first(gn)))) %>%
+        dplyr::mutate(state_no = cumsum(
+          gn != dplyr::lag(gn, 1, default = dplyr::first(gn)))
+          ) %>%
         dplyr::group_by(state, state_no) %>%
         dplyr::summarize(string = paste(char, collapse = ""),
                          .groups = "drop") %>%

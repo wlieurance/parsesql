@@ -2045,4 +2045,4 @@ special <- tibble::tribble(
   'ZONE', 'SQL-92', TRUE, FALSE
 )
 
-usethis::use_data(standards, special)
+usethis::use_data(standards, special, overwrite = TRUE)
