@@ -57,7 +57,7 @@ For those users who may want to use regex or string replacement functions, the _
 
 **python** (from the terminal):
 
-`pip install git+https://github.com/wlieurance/parsesql.git/python`
+`pip install git+https://github.com/wlieurance/parsesql`
 
 **R** (from within the R console):
 
