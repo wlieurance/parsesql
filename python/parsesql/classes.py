@@ -108,13 +108,13 @@ class SqlParser:
         """
 
         if my_state['lc'] or my_state['bc']:
-            text = cr.Fore.YELLOW + my_chars
-        elif any(v for (k, v) in my_state.items() if k in ['dt1', 'dc', 'dt2']):
-            text = cr.Fore.MAGENTA + my_chars
-        elif my_state['sq']:
-            text = cr.Fore.RED + my_chars
+            text = cr.Style.RESET_ALL + cr.Fore.YELLOW + my_chars
+        elif any(v for (k, v) in my_state.items() if k in ['dt1', 'dt2']):
+            text = cr.Style.RESET_ALL + cr.Back.YELLOW + cr.Fore.RED + my_chars
+        elif any(v for (k, v) in my_state.items() if k in ['sq', 'dc']):
+            text = cr.Style.RESET_ALL + cr.Fore.RED + my_chars
         elif my_state['qi']:
-            text = cr.Fore.CYAN + my_chars
+            text = cr.Style.RESET_ALL + cr.Fore.CYAN + my_chars
         else:
             if reserved:
                 split_text = re.split(r'(\s+|,|;)', my_chars)
@@ -124,9 +124,6 @@ class SqlParser:
                 text = cr.Style.RESET_ALL + ''.join(format_list)
             else:
                 text = cr.Style.RESET_ALL + my_chars
-        if any(v for (k, v) in my_state.items() if k in ['dt1', 'dt2']):
-            text = cr.Back.YELLOW + text
-
         return text
 
     def read_file(self, file):
@@ -187,18 +184,18 @@ class SqlParser:
                 if all(not value for value in new_state.values()):
                     new_state['dt1'] = True
                     begin = True
-            # this next control statement checks that a certain state is True and all other states are False
-            elif new_state['dt1'] and all(not v for (k, v) in new_state.items() if k != 'dt1'):
-                new_state['dt1'] = False
-                new_state['dc'] = True
-                begin = False
-            elif new_state['dc'] and all(not v for (k, v) in new_state.items() if k != 'dc'):
-                begin = True
-                new_state['dc'] = False
-                new_state['dt2'] = True
-            elif new_state['dt2'] and all(not v for (k, v) in new_state.items() if k != 'dt2'):
-                new_state['dt2'] = False
-                begin = False
+                # this next control statement checks that a certain state is True and all other states are False
+                elif new_state['dt1'] and all(not v for (k, v) in new_state.items() if k != 'dt1'):
+                    new_state['dt1'] = False
+                    new_state['dc'] = True
+                    begin = False
+                elif new_state['dc'] and all(not v for (k, v) in new_state.items() if k != 'dc'):
+                    begin = True
+                    new_state['dc'] = False
+                    new_state['dt2'] = True
+                elif new_state['dt2'] and all(not v for (k, v) in new_state.items() if k != 'dt2'):
+                    new_state['dt2'] = False
+                    begin = False
 
             if (sql_chars[i] == "'" and
                     ''.join(sql_chars[i:min(i+2, char_len)]) != "''" and

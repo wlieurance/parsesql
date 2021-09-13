@@ -326,9 +326,9 @@ sql_parser <- R6::R6Class("sql_parser",
       f <- Vectorize(FUN = function(my_chars, my_state, reserved){
         if (my_state[["lc"]] || my_state['bc']) {
           text <- crayon::yellow(my_chars)
-        } else if (any(my_state[c("dt1", "dc", "dt2")])) {
-          text <- crayon::magenta(my_chars)
-        } else if (my_state["sq"]) {
+        } else if (any(my_state[c("dt1", "dt2")])) {
+          text <- crayon::bgYellow(crayon::red(my_chars))
+        } else if (any(my_state[c("sq", "dc")])) {
           text <- crayon::red(my_chars)
         } else if (my_state["qi"]) {
           text <- crayon::cyan(my_chars)
@@ -340,9 +340,6 @@ sql_parser <- R6::R6Class("sql_parser",
               crayon::blue(crayon::bold(split_text)),
             TRUE ~ crayon::reset(split_text))
           text <-  paste(format_list, collapse = "")
-        }
-        if (any(my_state[c("dt1", "dt2")])) {
-          text <- crayon::bgYellow(text)
         }
         return(text)
       }, vectorize.args = c("my_chars", "my_state"))

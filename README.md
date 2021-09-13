@@ -20,7 +20,7 @@ Characters sharing the same state are then concatenated between each state chang
 Users can initialize an instance of the class most simply in python using the following commands:
 
 
-`from parsesql import SqlParser`
+`from parsesql.classes import SqlParser`
 
 `my_instance = SqlParser(args)` 
 
