@@ -1,4 +1,4 @@
-#' sqlparse: A package for parsing multi-statement Structured Query Language
+#' parsesql: A package for parsing multi-statement Structured Query Language
 #' (SQL) strings.
 #'
 #' @description The sqlparse package provides a single R6 class `sql_parser`
@@ -15,6 +15,6 @@
 #'     commented out or quoted.
 #' }
 #' @docType package
-#' @name sqlparse
+#' @name parsesql
 NULL
 #> NULL

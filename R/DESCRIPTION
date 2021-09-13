@@ -1,6 +1,6 @@
-Package: sqlparse
+Package: parsesql
 Title: Parses Structured Query Language Strings into Statement Vectors
-Version: 0.0.0.9000
+Version: 0.1
 Authors@R: 
     person(given = "Wade",
            family = "Lieurance",
@@ -32,4 +32,4 @@ LazyData: true
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.1.2
 Depends: 
-    R (>= 2.10)
+    R (>= 4.0)
