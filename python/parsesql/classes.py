@@ -1,7 +1,7 @@
 import colorama as cr
 import re
 import os
-from vars import STANDARDS, SPECIAL
+from parsesql.vars import STANDARDS, SPECIAL
 
 
 class SqlParser:
