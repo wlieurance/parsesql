@@ -175,3 +175,8 @@ vignettes/*.pdf
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
+
+# package specific
+/python/parsesql/docs/_*
+/python/parsesql/docs/make.bat
+/python/parsesql/docs/Makefile

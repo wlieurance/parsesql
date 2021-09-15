@@ -31,54 +31,43 @@ class SqlParser:
         if text and file:
             raise ValueError("text and file cannot both be not both be provided.")
         self.standard = standard
-        """An SQL standard from which to identify key words from. One of: ('SQL-92', 'SQL:2011', 'SQL:2016', 
-        'PostgreSQL')
-        :type standard: str
-        """
+        """str. An SQL standard from which to identify key words from. One of: ('SQL-92', 'SQL:2011', 'SQL:2016', 
+        'PostgreSQL')"""
         self.reserved = [x[0] for x in SPECIAL if x[1] == standard]
-        """Populated from the global 'STANDARDS' variable and filtered during class initialization by choice of the 
-        `standard` field.
-        :type reserved: List[str]
-        """
+        """List[str]. Populated from the global 'STANDARDS' variable and filtered during class initialization by 
+        choice of the `standard` field."""
         if params is None:
             self.params = dict()
-            """Contains parameters to replace in the SQL code. Parameters need to be identically named and contained by
-            brackets {} in the SQL file and dictionary names must match the text enclosed in brackets.
-            :type params: dict"""
+            """dict. Contains parameters to replace in the SQL code. Parameters need to be identically named and 
+            contained by brackets {} in the SQL file and dictionary names must match the text enclosed in brackets."""
         else:
             self.params = params
         if text:
             self.text = text
-            """Text containing one or more SQL statements separated by a semicolon.
-            :type text: str"""
+            """str. Text containing one or more SQL statements separated by a semicolon."""
         else:
             self.read_file(file)
         if self.params:
             self.param_text = self.text.format(**self.params)
-            """Sourced from `text` or `file` where parameters which have been enclosed in brackets in the string have 
-            been replaced by their values in `params`.
-            :type param_text: str"""
+            """str. Sourced from `text` or `file` where parameters which have been enclosed in brackets in the string 
+            have been replaced by their values in `params`."""
         else:
             self.param_text = self.text
         self.char_states = []
-        """Each list element is an SQL statement and each sublist is a list of two values in a tuple, `char` and 
-        `state`, a single character and a dictionary containing that character's state respectively.
-        :type char_states: List[List[(str, dict)]]"""
+        """List[List[(str, dict)]]. Each list element is an SQL statement and each sublist is a list of two values in a 
+        tuple, `char` and `state`, a single character and a dictionary containing that character's state respectively.
+        """
         self.stripped_states = []
-        """Contains the same data as `char_states`, but with whitespace trimmed from the beginning and end of each 
-        statement sublist.
-        :type stripped_states: List[List[(str, dict)]]"""
+        """List[List[(str, dict)]]. Contains the same data as `char_states`, but with whitespace trimmed from the 
+        beginning and end of each statement sublist."""
         self.string_states = []
-        """Contains the same data as `stripped_states`, but the characters sharing the same sequential state have been
-        concatenated and assigned their shared state.
-        :type string_states: List[List[(str, dict)]]"""
+        """List[List[(str, dict)]]. Contains the same data as `stripped_states`, but the characters sharing the same 
+        sequential state have been concatenated and assigned their shared state."""
         self.sql = []
-        """The final SQL statements, split into list format.
-        :type sql: List[str]"""
+        """List[str]. The final SQL statements, split into list format."""
         self.formatted = []
-        """The final SQL statements, split into list format and formatted with color and style via the colorama 
-        module.
-        :type formatted: List[str]"""
+        """List[str]. The final SQL statements, split into list format and formatted with color and style via the 
+        colorama module."""
         self.get_state()
         self.strip_ws()
         self.combine_states()
