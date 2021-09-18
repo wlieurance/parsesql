@@ -90,7 +90,9 @@ class SqlParser:
         :param my_chars: A character string containing the text to format.
         :type my_chars: str
         :param my_state: A variable containing state information for my_chars.
-        :type mystate: dict
+        :type my_state: dict
+        :param reserved: A list of words to recognize as "special" which are bolded.
+        :type reserved: list
 
         :return: A color/style formatted version of my_chars.
         :rtype: str
