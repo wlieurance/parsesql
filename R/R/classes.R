@@ -86,7 +86,7 @@ sql_parser <- R6::R6Class("sql_parser",
     #' @return A new `SqlParser` object.
     initialize = function(text = NA, file_path = NA, standard = "SQL:2016",
                           params = NA){
-      if (!standard %in% standards){
+      if (!standard %in% parsesql::standards){
         stop(glue(paste0("standard: must be one of {paste(standards, ",
                          "collapse = ', ')}.")))
       }
