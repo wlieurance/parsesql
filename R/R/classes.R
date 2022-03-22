@@ -87,8 +87,8 @@ sql_parser <- R6::R6Class("sql_parser",
     initialize = function(text = NA, file_path = NA, standard = "SQL:2016",
                           params = NA){
       if (!standard %in% parsesql::standards){
-        stop(glue(paste0("standard: must be one of {paste(standards, ",
-                         "collapse = ', ')}.")))
+        stop(glue(paste0("standard: must be one of {paste(parsesql::standards,",
+                         " collapse = ', ')}.")))
       }
       if (!is.list(params) && !is.na(params)){
         stop("params: must be a named list.")
@@ -103,7 +103,7 @@ sql_parser <- R6::R6Class("sql_parser",
         stop("text and file_path cannot both be not both be provided.")
       }
       self$standard <- standard
-      self$reserved <- dplyr::filter(special,
+      self$reserved <- dplyr::filter(parsesql::special,
                                      standard == self[["standard"]])$key_word
       self$params <- params
       if (!is.na(text)){
