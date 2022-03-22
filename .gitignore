@@ -180,3 +180,6 @@ vignettes/*.pdf
 /python/parsesql/docs/_*
 /python/parsesql/docs/make.bat
 /python/parsesql/docs/Makefile
+
+# vim
+tags
