@@ -294,7 +294,7 @@ sql_parser <- R6::R6Class("sql_parser",
       self$mat_states <- mat
     },
 
-    #' @description Takes a begining and end point of a matrix, subsets the
+    #' @description Takes a beginning and end point of a matrix, subsets the
     #'   matrix and then converts the matrix to a tibble.
     #'
     #' @param begin an integer. The matrix row on which to start the subset.
@@ -305,7 +305,7 @@ sql_parser <- R6::R6Class("sql_parser",
     #' @return A tibble representing an individual SQL statement with characters
     #'   in the 'char' column and states with the 'state' column.
     mat_convert = function(begin, end, m){
-      df <- tibble::as_tibble(m[begin:end,], rownames = "char")
+      df <- tibble::as_tibble(m[begin:end,, drop = F], rownames = "char")
       df$state = cbind(lc=df$lc, bc=df$bc, dt1=df$dt1, dt2=df$dt2, dc=df$dc,
                        sq=df$sq, qi=df$qi)
       df_new <- df |> dplyr::select(-lc, -bc, -dt1, -dt2, -dc, -sq, -qi, -brk)
@@ -508,7 +508,7 @@ sql_parser <- R6::R6Class("sql_parser",
           self$sql[[length(self$sql) + 1]] <- stmt
         }
       }
-      self$formated <- self$sql
+      self$formatted <- self$sql
     },
 
     #' @description Prints the formatted SQL statements separated by a dashed
