@@ -502,7 +502,7 @@ sql_parser <- R6::R6Class("sql_parser",
       if (self$verbose == TRUE){
         print("Combining characters into statements...")
       }
-      sql <- lapply(self$char_states, FUN = fast_combine)
+      sql <- lapply(self$char_states, FUN = self$fast_combine)
       for (stmt in sql){
         if(trimws(stmt) != ''){
           self$sql[[length(self$sql) + 1]] <- stmt
