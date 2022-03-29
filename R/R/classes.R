@@ -42,6 +42,12 @@ sql_parser <- R6::R6Class("sql_parser",
     #'   containing that character's state respectively.
     char_states = list(),
 
+    #' @field char_states A list of tibbles, one tibble for each statement.
+    #'   Each tibble contains two columns, 'char' and 'state', a single
+    #'   character field and a list encapsulated named logical vector
+    #'   containing that character's state respectively.
+    mat_states = NULL,
+
     #' @field stripped_states A list of tibbles. A stripped version of
     #'   `char_states` where white space characters have been removed from the
     #'   beginning and end of statement tibbles.
@@ -64,6 +70,14 @@ sql_parser <- R6::R6Class("sql_parser",
     #' the `crayon` package.
     formatted = list(),
 
+    #' @field verbose A boolean telling the constructor to give progress
+    #' feedback
+    verbose = NULL,
+
+    #' @field fast A boolean telling the constructor to use faster algorithm,
+    #' which avoids formatting (for very large SQL statements).
+    fast = NULL,
+
     #' @description Create a new SqlParser object.
     #'
     #' @param text A character string containing one or more SQL statements
@@ -85,7 +99,7 @@ sql_parser <- R6::R6Class("sql_parser",
     #'                standard = "PostgreSQL")
     #' @return A new `SqlParser` object.
     initialize = function(text = NA, file_path = NA, standard = "SQL:2016",
-                          params = NA){
+                          params = NA, verbose = FALSE, fast = FALSE){
       if (!standard %in% parsesql::standards){
         stop(glue(paste0("standard: must be one of {paste(parsesql::standards,",
                          " collapse = ', ')}.")))
@@ -102,6 +116,8 @@ sql_parser <- R6::R6Class("sql_parser",
       if (!is.na(text) && !is.na(file_path)){
         stop("text and file_path cannot both be not both be provided.")
       }
+      self$verbose <- verbose
+      self$fast <- fast
       self$standard <- standard
       self$reserved <- dplyr::filter(parsesql::special,
                                      standard == self[["standard"]])$key_word
@@ -123,9 +139,14 @@ sql_parser <- R6::R6Class("sql_parser",
       self$formatted <- list()
 
       self$get_state()
-      self$strip_ws()
-      self$combine_states()
-      self$combine_stmts()
+      self$separate_stmts()
+      if (self$fast == TRUE){
+        self$fast_combine_stmts()
+      } else {
+        self$strip_ws()
+        self$combine_states()
+        self$combine_stmts()
+      }
     },
 
     #' @description Reads in file text and stores within the class if there is
@@ -133,6 +154,9 @@ sql_parser <- R6::R6Class("sql_parser",
     #' @param f A character string which is a file path to an existing file
     #'   containing one or more SQL statements separated by a semicolon.
     read_fp = function(f){
+      if (self$verbose == TRUE){
+        print("Reading file...")
+      }
       if (!file.exists(f)){
         stop("file_path: must be an existing file.")
       }
@@ -149,6 +173,11 @@ sql_parser <- R6::R6Class("sql_parser",
         return(param_sql)
       }
 
+      mat <- matrix(
+        data = NA, nrow = param_len, ncol = 8,
+        dimnames = list(
+          param_sql, c('lc', 'bc', 'dt1', 'dt2', 'dc', 'sq', 'qi', 'brk')),
+        byrow = TRUE)
       current <- character()
       state_list <- list()
       state <- c(
@@ -161,7 +190,11 @@ sql_parser <- R6::R6Class("sql_parser",
         qi = FALSE  # quoted identifier
       )
       begin <-  TRUE
+      if (self$verbose == TRUE){
+        cat("SQL state scanning progress...\n0...")
+      }
       for (i in seq(1, param_len)){
+        # print(i)
         new_state <- state
         if (paste0(param_sql[i], param_sql[i+1]) == "--"){
           if (all(!new_state)){
@@ -231,22 +264,70 @@ sql_parser <- R6::R6Class("sql_parser",
             begin <- FALSE
           }
         }
-
         if (begin){
-          state_list <- c(state_list, list(new_state))
+          # state_list <- c(state_list, list(new_state))
+          mat[i,1:7] <- new_state
         } else {
-          state_list <- c(state_list, list(state))
+          # state_list <- c(state_list, list(state))
+          mat[i,1:7] <- state
         }
-        current <- c(current, param_sql[i])
+        # current <- c(current, param_sql[i])
         state <- new_state
 
         if (param_sql[i] == ";" && all(!new_state)){
-          self$char_states[[length(self$char_states) + 1]] <-
-            tibble::as_tibble(list(char = current, state = state_list))
-          current <- character()
-          state_list <- list()
+          # self$char_states[[length(self$char_states) + 1]] <-
+          #   tibble::as_tibble(list(char = current, state = state_list))
+          # current <- character()
+          # state_list <- list()
+          mat[i, "brk"] <- TRUE
+        } else{
+          mat[i, "brk"] <- FALSE
+        }
+        # print(i)
+        if (self$verbose == TRUE){
+          if (i %% 100000 == 0){
+            cat(paste0(round(i/param_len*100, 1), "%..."))
+          }
         }
       }
+      if (self$verbose == TRUE){
+        cat("100%\n")
+      }
+      self$mat_states <- mat
+    },
+
+    mat_convert = function(begin, end, m){
+      df <- tibble::as_tibble(m[begin:end,], rownames = "char")
+      df$state = cbind(lc=df$lc, bc=df$bc, dt1=df$dt1, dt2=df$dt2, dc=df$dc,
+                       sq=df$sq, qi=df$qi)
+      df_new <- df |> dplyr::select(-lc, -bc, -dt1, -dt2, -dc, -sq, -qi, -brk)
+      return(df_new)
+    },
+
+    separate_stmts = function(){
+      if (self$verbose == TRUE){
+        print("Converting SQL into separate statements...")
+      }
+      brk_rows <- which(self$mat_states[,"brk"] == TRUE)
+      brk_full <- brk_rows
+      # adds rows before the first break (if any)
+      if (head(brk_rows, 1) != 1){
+        brk_full <- c(0, brk_full)
+      }
+      # adds rows after the last break (if any)
+      if (tail(brk_rows, 1) != nrow(mat)){
+        brk_full <- c(brk_full, nrow(mat))
+      }
+      # converts breaszk into matrix for use in mapply
+      brk_mat <- matrix(, nrow = length(brk_full)-1, ncol = 2)
+      for (i in 1:length(brk_full)-1){
+        brk_mat[i,] <- c(brk_full[i]+1, brk_full[i+1])
+      }
+
+      self$char_states <- mapply(FUN = self$mat_convert,
+                                 begin = brk_mat[,1], end = brk_mat[,2],
+                                 MoreArgs = list(m = self$mat_states),
+                                 SIMPLIFY = FALSE)
     },
 
     #' @description Finds white space characters at the beginning and end of a
@@ -260,11 +341,12 @@ sql_parser <- R6::R6Class("sql_parser",
     strip_single = function(stmt){
       df <- stmt
       for (i in range(1,2)){
-        new <- tibble::tibble(char = character(), state = list())
+        # new <- tibble::tibble(char = character(), state = logical())
+        new <- stmt[0,]
         non_ws <- FALSE
         for (j in as.integer(rownames(df))){
           if (grepl("^[^\\s]+$", df[j, "char"], perl = TRUE)){
-            new <- dplyr::bind_rows(new, df[j:nrow(df),])
+            new <- rbind(new, df[j:nrow(df),])
             break
           }
         }
@@ -275,6 +357,9 @@ sql_parser <- R6::R6Class("sql_parser",
 
     #' @description Applies the `strip_single` method over a list of tibbles.
     strip_ws = function(){
+      if (self$verbose == TRUE){
+        print("Stripping whitespace and empty statements...")
+      }
       self$stripped_states <- lapply(self$char_states, self$strip_single)
     },
 
@@ -291,24 +376,27 @@ sql_parser <- R6::R6Class("sql_parser",
     #'   individual characters from `stripped_states` 'char' field which share
     #'   the same state before a new state is detected.
     string_group = function(stripped){
-      groups <- stripped %>% dplyr::group_by(state) %>%
-        dplyr::summarize(.groups="drop") %>%
+      groups <- stripped |> dplyr::group_by(state) |>
+        dplyr::summarize(.groups="drop") |>
         dplyr::mutate(gn = dplyr::row_number())
-      combined <- stripped %>%
-        dplyr::inner_join(groups, by = c("state"="state")) %>%
+      combined <- stripped |>
+        dplyr::inner_join(groups, by = c("state"="state")) |>
         # next line is where the magic happens to detect changes in states
         dplyr::mutate(state_no = cumsum(
           gn != dplyr::lag(gn, 1, default = dplyr::first(gn)))
-          ) %>%
-        dplyr::group_by(state, state_no) %>%
+          ) |>
+        dplyr::group_by(state, state_no) |>
         dplyr::summarize(string = paste(char, collapse = ""),
-                         .groups = "drop") %>%
+                         .groups = "drop") |>
         dplyr::arrange(state_no)
       return(combined)
     },
 
     #' @description Applies the `string_group` method over a list of tibbles.
     combine_states = function(){
+      if (self$verbose == TRUE){
+        print("Combining characters into statements...")
+      }
       self$string_states <- lapply(self$stripped_states, self$string_group)
     },
 
@@ -322,15 +410,16 @@ sql_parser <- R6::R6Class("sql_parser",
     #'   \strong{bold}.
     #'
     #' @return A color/style formatted version of \code{my_chars}.
-    format_char = function(my_chars, my_state, reserved){
-      f <- Vectorize(FUN = function(my_chars, my_state, reserved){
-        if (my_state[["lc"]] || my_state['bc']) {
+    format_char = function(my_chars, lc, bc, dt1, dt2, dc, sq, qi, reserved){
+      f <- Vectorize(FUN = function(my_chars, lc, bc, dt1, dt2, dc, sq, qi,
+                                    reserved){
+        if (lc || bc) {
           text <- crayon::yellow(my_chars)
-        } else if (any(my_state[c("dt1", "dt2")])) {
+        } else if (any(c(dt1, dt2))) {
           text <- crayon::bgYellow(crayon::red(my_chars))
-        } else if (any(my_state[c("sq", "dc")])) {
+        } else if (any(c(sq, dc))) {
           text <- crayon::red(my_chars)
-        } else if (my_state["qi"]) {
+        } else if (qi) {
           text <- crayon::cyan(my_chars)
         } else {
           split_text <- unlist(stringr::str_split(my_chars, "\\b"))
@@ -342,8 +431,9 @@ sql_parser <- R6::R6Class("sql_parser",
           text <-  paste(format_list, collapse = "")
         }
         return(text)
-      }, vectorize.args = c("my_chars", "my_state"))
-      return(f(my_chars, my_state, reserved))
+      }, vectorize.args = c("my_chars", "lc", "bc", "dt1",
+                            "dt2", "dc", "sq", "qi"))
+      return(f(my_chars, lc, bc, dt1, dt2, dc, sq, qi, reserved))
     },
 
     #' @description Combines SQL with different states into a single statements,
@@ -355,12 +445,15 @@ sql_parser <- R6::R6Class("sql_parser",
     #' @return A named list containing the SQL statement (sql) and a formatted
     #'   version for printing (formatted).
     group_df = function(df, reserved) {
-      df_frmt <- df %>%
-        dplyr::mutate(frmt = self$format_char(my_chars = string,
-                                              my_state = state,
-                                              reserved = reserved)) %>%
-        dplyr::arrange(state_no) %>%
-        dplyr::group_by() %>%
+      df_frmt <- df |>
+        dplyr::mutate(
+          frmt = self$format_char(
+            my_chars = string,
+            lc = state[, "lc"], bc = state[, "bc"], dt1 = state[, "dt1"],
+            dt2 = state[, "dt2"], dc = state[, "dc"], sq = state[, "sq"],
+            qi = state[, "qi"], reserved = reserved)) |>
+        dplyr::arrange(state_no) |>
+        dplyr::group_by() |>
         dplyr::summarize(sql = paste(string, collapse = ""),
                   formatted = paste(frmt, collapse = ""),
                   .groups = "drop")
@@ -373,10 +466,36 @@ sql_parser <- R6::R6Class("sql_parser",
     #'   separates the output into two separate class variables, `sql` and
     #'   `formatted`.
     combine_stmts = function(){
+      if (self$verbose == TRUE){
+        print("Formatting strings for printing...")
+      }
       combined_list <-  lapply(X = self$string_states, FUN = self$group_df,
                                reserved = self$reserved)
       self$sql <- sapply(combined_list, FUN = function(x) x$sql)
       self$formatted <- sapply(combined_list, FUN = function(x) x$formatted)
+    },
+
+    #' @description Combines SQL characters into single statments.
+    #' @param df A single tibble produced from the `separate_stmts` method.
+    #'
+    #' @return A character string containing a SQL statement.
+    fast_combine = function(df){
+      df_new <- paste(df$char, collapse = '')
+      return(df_new)
+    },
+
+    #' @description Applies the `fast_combine` method over a list of tibbles and
+    #'   stores non-whitespace statements into the `sql` class variable
+    fast_combine_stmts = function(){
+      if (self$verbose == TRUE){
+        print("Combining characters into statements...")
+      }
+      sql <- lapply(self$char_states, FUN = fast_combine)
+      for (stmt in sql){
+        if(trimws(stmt) != ''){
+          self$sql[[length(self$sql) + 1]] <- stmt
+        }
+      }
     },
 
     #' @description Prints the formatted SQL statements separated by a dashed
@@ -391,4 +510,3 @@ sql_parser <- R6::R6Class("sql_parser",
     }
   )
 )
-
