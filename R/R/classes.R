@@ -508,6 +508,7 @@ sql_parser <- R6::R6Class("sql_parser",
           self$sql[[length(self$sql) + 1]] <- stmt
         }
       }
+      self$formated <- self$sql
     },
 
     #' @description Prints the formatted SQL statements separated by a dashed
