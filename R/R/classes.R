@@ -42,10 +42,8 @@ sql_parser <- R6::R6Class("sql_parser",
     #'   containing that character's state respectively.
     char_states = list(),
 
-    #' @field char_states A list of tibbles, one tibble for each statement.
-    #'   Each tibble contains two columns, 'char' and 'state', a single
-    #'   character field and a list encapsulated named logical vector
-    #'   containing that character's state respectively.
+    #' @field mat_states A matrix containing the sql characters as rownames and
+    #' a boolean column for each state that the character is determined to have.
     mat_states = NULL,
 
     #' @field stripped_states A list of tibbles. A stripped version of
