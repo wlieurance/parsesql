@@ -296,6 +296,16 @@ sql_parser <- R6::R6Class("sql_parser",
       self$mat_states <- mat
     },
 
+    #' @description Takes a begining and end point of a matrix, subsets the
+    #'   matrix and then converts the matrix to a tibble.
+    #'
+    #' @param begin an integer. The matrix row on which to start the subset.
+    #' @param end an integer. The matrix row on which to end the subset.
+    #' @param m a matrix produced from the `get_state` method with rownames as
+    #'   the individual characters in the sql statement(s)
+    #'
+    #' @return A tibble representing an individual SQL statement with characters
+    #'   in the 'char' column and states with the 'state' column.
     mat_convert = function(begin, end, m){
       df <- tibble::as_tibble(m[begin:end,], rownames = "char")
       df$state = cbind(lc=df$lc, bc=df$bc, dt1=df$dt1, dt2=df$dt2, dc=df$dc,
@@ -304,6 +314,10 @@ sql_parser <- R6::R6Class("sql_parser",
       return(df_new)
     },
 
+    #' @description Parses matrix created with `get_state` method and separates
+    #' the matrices into SQL statement sub matrices based on ';' characters
+    #' that have no state, then converts submatrices into a list of tibbles
+    #' using the `mat_convert` method.
     separate_stmts = function(){
       if (self$verbose == TRUE){
         print("Converting SQL into separate statements...")
@@ -315,10 +329,10 @@ sql_parser <- R6::R6Class("sql_parser",
         brk_full <- c(0, brk_full)
       }
       # adds rows after the last break (if any)
-      if (tail(brk_rows, 1) != nrow(mat)){
-        brk_full <- c(brk_full, nrow(mat))
+      if (tail(brk_rows, 1) != nrow(self$mat_states)){
+        brk_full <- c(brk_full, nrow(self$mat_states))
       }
-      # converts breaszk into matrix for use in mapply
+      # converts breaks into matrix for use in mapply
       brk_mat <- matrix(, nrow = length(brk_full)-1, ncol = 2)
       for (i in 1:length(brk_full)-1){
         brk_mat[i,] <- c(brk_full[i]+1, brk_full[i+1])
