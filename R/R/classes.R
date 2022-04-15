@@ -130,6 +130,7 @@ sql_parser <- R6::R6Class("sql_parser",
       } else {
         self$param_text <- self$text
       }
+      self$mat_states <- matrix()
       self$char_states <- list()
       self$stripped_states <- list()
       self$string_states <- list()
@@ -139,11 +140,11 @@ sql_parser <- R6::R6Class("sql_parser",
       self$get_state()
       self$separate_stmts()
       if (self$fast == TRUE){
-        self$fast_combine_stmts()
+        self$fast_combine_statements()
       } else {
         self$strip_ws()
         self$combine_states()
-        self$combine_stmts()
+        self$combine_statements()
       }
     },
 
@@ -153,7 +154,7 @@ sql_parser <- R6::R6Class("sql_parser",
     #'   containing one or more SQL statements separated by a semicolon.
     read_fp = function(f){
       if (self$verbose == TRUE){
-        print("Reading file...")
+        cat("Reading file...\n")
       }
       if (!file.exists(f)){
         stop("file_path: must be an existing file.")
@@ -318,7 +319,7 @@ sql_parser <- R6::R6Class("sql_parser",
     #' using the `mat_convert` method.
     separate_stmts = function(){
       if (self$verbose == TRUE){
-        print("Converting SQL into separate statements...")
+        cat("Converting SQL into separate statements...\n")
       }
       brk_rows <- which(self$mat_states[,"brk"] == TRUE)
       brk_full <- brk_rows
@@ -352,15 +353,18 @@ sql_parser <- R6::R6Class("sql_parser",
     #'   statement removed if they contain white space characters.
     strip_single = function(stmt){
       df <- stmt
+      # i = 1 goes from beginning to end then reverses the df,
+      # i = 2 goes from end to beginning and then reverses again.
       for (i in range(1,2)){
-        # new <- tibble::tibble(char = character(), state = logical())
         new <- stmt[0,]
-        non_ws <- FALSE
         for (j in as.integer(rownames(df))){
           if (grepl("^[^\\s]+$", df[j, "char"], perl = TRUE)){
             new <- rbind(new, df[j:nrow(df),])
             break
           }
+        }
+        if (dim(new)[1] == 0){
+          return(NULL)
         }
         df <- new[dim(new)[1]:1,]
       }
@@ -370,9 +374,11 @@ sql_parser <- R6::R6Class("sql_parser",
     #' @description Applies the `strip_single` method over a list of tibbles.
     strip_ws = function(){
       if (self$verbose == TRUE){
-        print("Stripping whitespace and empty statements...")
+        cat("Stripping whitespace and empty statements...\n")
       }
-      self$stripped_states <- lapply(self$char_states, self$strip_single)
+      stripped <- lapply(self$char_states, self$strip_single)
+      # removes any nulls in the list due to total white space
+      self$stripped_states <- stripped[!sapply(stripped,is.null)]
     },
 
     #' @description Combines characters that have the same state into strings
@@ -407,7 +413,7 @@ sql_parser <- R6::R6Class("sql_parser",
     #' @description Applies the `string_group` method over a list of tibbles.
     combine_states = function(){
       if (self$verbose == TRUE){
-        print("Combining characters into statements...")
+        cat("Combining characters into statements...\n")
       }
       self$string_states <- lapply(self$stripped_states, self$string_group)
     },
@@ -477,9 +483,9 @@ sql_parser <- R6::R6Class("sql_parser",
     #' @description Applies the `group_df` method over a list of tibbles and
     #'   separates the output into two separate class variables, `sql` and
     #'   `formatted`.
-    combine_stmts = function(){
+    combine_statements = function(){
       if (self$verbose == TRUE){
-        print("Formatting strings for printing...")
+        cat("Formatting strings for printing...\n")
       }
       combined_list <-  lapply(X = self$string_states, FUN = self$group_df,
                                reserved = self$reserved)
@@ -498,9 +504,9 @@ sql_parser <- R6::R6Class("sql_parser",
 
     #' @description Applies the `fast_combine` method over a list of tibbles and
     #'   stores non-whitespace statements into the `sql` class variable
-    fast_combine_stmts = function(){
+    fast_combine_statements = function(){
       if (self$verbose == TRUE){
-        print("Combining characters into statements...")
+        cat("Combining characters into statements...\n")
       }
       sql <- lapply(self$char_states, FUN = self$fast_combine)
       for (stmt in sql){
